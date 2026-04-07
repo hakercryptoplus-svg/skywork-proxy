@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: skywork-proxy
+    runtime: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: SECRET_KEY
+        value: Ahmad_Investor_2026
