@@ -7,3 +7,9 @@ services:
     envVars:
       - key: SECRET_KEY
         value: Ahmad_Investor_2026
+      - key: TELEGRAM_BOT_TOKEN
+        value: 8329901696:AAHAb3Z0TXZKxHsFn6mQ3zeBbXS4Gd7JYzY
+      - key: TELEGRAM_CHAT_ID
+        value: "7281928709"
+      - key: GITHUB_TOKEN
+        sync: false
