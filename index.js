@@ -36,7 +36,7 @@ app.post('/v1/chat/completions', async (req, res) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer dummy',
+          Authorization: 'Bearer dummy',
           'x-skywork-cookies': token
         },
         body: JSON.stringify(body)
@@ -47,7 +47,6 @@ app.post('/v1/chat/completions', async (req, res) => {
         res.setHeader('Content-Type', contentType);
 
         const isStream = body?.stream === true || contentType.includes('text/event-stream');
-
         if (isStream && response.body) {
           res.status(200);
           const reader = response.body.getReader();
@@ -74,6 +73,10 @@ app.post('/v1/chat/completions', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Skywork Proxy running on port ${PORT}`);
-});
 
-require('./bot');
+  try {
+    require('./bot');
+  } catch (err) {
+    console.error('Bot failed to start:', err.message);
+  }
+});
