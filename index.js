@@ -203,6 +203,34 @@ app.post('/v1/chat/completions', async (req, res) => {
   });
 });
 
+app.post('/relay', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader !== `Bearer ${SECRET_KEY}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { url, method, headers, body } = req.body;
+  if (!url || !url.startsWith('https://api.skywork.ai/')) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const response = await fetch(url, {
+      method: method || 'POST',
+      headers: { ...headers },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const respHeaders = {};
+    response.headers.forEach((v, k) => { respHeaders[k] = v; });
+    const text = await response.text();
+    res.json({ status: response.status, headers: respHeaders, body: text });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.listen(PORT, () => {
   const stats = getStats();
   console.log(`[skywork-proxy] ✅ Running on port ${PORT}`);
