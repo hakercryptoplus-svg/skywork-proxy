@@ -1,17 +1,1 @@
-{
-  "name": "skywork-proxy",
-  "version": "1.0.0",
-  "description": "Proxy server for Skywork AI API with token rotation and Telegram bot management",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "node index.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "node-telegram-bot-api": "^0.66.0"
-  },
-  "engines": {
-    "node": ">=18"
-  }
-}
+{"name":"skywork-proxy","version":"1.0.0","description":"Proxy server for Skywork AI API with token rotation","main":"index.js","scripts":{"start":"node index.js","dev":"node index.js"},"dependencies":{"express":"^4.18.2"},"engines":{"node":">=18"}}
