@@ -131,6 +131,30 @@ app.get('/collector/status', (req, res) => {
   res.json(collector.getStats());
 });
 
+function adminAuth(req, res, next) {
+  if (req.headers['authorization'] !== `Bearer ${SECRET_KEY}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+app.post('/admin/collector/start', adminAuth, (req, res) => {
+  res.json({ started: collector.start(), stats: collector.getStats() });
+});
+
+app.post('/admin/collector/stop', adminAuth, (req, res) => {
+  res.json({ stopped: collector.stop(), stats: collector.getStats() });
+});
+
+app.post('/admin/collector/test', adminAuth, async (req, res) => {
+  try {
+    const result = await collector.testOne();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.post('/v1/chat/completions', async (req, res) => {
   const authHeader = req.headers['authorization'];
   if (authHeader !== `Bearer ${SECRET_KEY}`) {
