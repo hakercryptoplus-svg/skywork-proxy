@@ -1,5 +1,7 @@
 const express = require('express');
 const state = require('./state');
+const collector = require('./collector');
+const tg = require('./telegram');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -83,13 +85,20 @@ app.options('*', (req, res) => res.status(204).end());
 
 app.get('/', (req, res) => {
   const stats = getStats();
+  const cstats = collector.getStats();
   res.json({
     status: 'ok',
-    message: 'Skywork LLM Proxy — auto token rotation',
+    message: 'Skywork LLM Proxy — auto token rotation + auto collection',
     tokens: stats.total,
     healthy: stats.healthy,
     unhealthy: stats.unhealthy,
-    models: MODELS.length
+    models: MODELS.length,
+    collector: {
+      running: cstats.running,
+      session_success: cstats.success,
+      session_failed: cstats.failed,
+      pending_push: cstats.pending
+    }
   });
 });
 
@@ -101,9 +110,7 @@ app.get('/health', (req, res) => {
 app.get('/v1/models', (req, res) => {
   res.json({
     object: 'list',
-    data: MODELS.map(id => ({
-      id, object: 'model', created: 1700000000, owned_by: 'skywork'
-    }))
+    data: MODELS.map(id => ({ id, object: 'model', created: 1700000000, owned_by: 'skywork' }))
   });
 });
 
@@ -118,6 +125,10 @@ app.get('/v1/stats', (req, res) => {
     };
   });
   res.json({ ...getStats(), tokens: details });
+});
+
+app.get('/collector/status', (req, res) => {
+  res.json(collector.getStats());
 });
 
 app.post('/v1/chat/completions', async (req, res) => {
@@ -159,7 +170,7 @@ app.post('/v1/chat/completions', async (req, res) => {
         const contentType = response.headers.get('content-type') || 'application/json';
         const isStream = body?.stream === true || contentType.includes('text/event-stream');
 
-        if (isStream && response.body) {
+        if (isStream) {
           const textBody = await response.text();
           if (textBody.includes('skywork_router_limit') || textBody.includes('rate_limit')) {
             recordTokenFail(token);
@@ -209,4 +220,16 @@ app.listen(PORT, () => {
   console.log(`[skywork-proxy] 🔑 ${stats.total} tokens loaded (${stats.healthy} healthy)`);
   console.log(`[skywork-proxy] 📦 ${MODELS.length} models available`);
   console.log(`[skywork-proxy] 🔄 Auto rotation enabled`);
+
+  // Auto-start collector if enabled
+  if (process.env.START_COLLECTOR === '1') {
+    tg.attach(collector);
+    if (tg.ENABLED) {
+      tg.pollUpdates().catch(e => console.error('[tg] poll loop crashed:', e.message));
+      tg.send(`🚀 <b>skywork-proxy started</b>\n📦 Tokens: ${stats.total}\n🤖 Collector: ON\n💬 /status /stop /start`).catch(() => {});
+    }
+    collector.start();
+  } else {
+    console.log('[skywork-proxy] 💤 Collector OFF (set START_COLLECTOR=1 to enable)');
+  }
 });
