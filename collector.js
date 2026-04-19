@@ -196,4 +196,16 @@ function getStats() {
   return { ...stats, running, workers, total: state.getTokens().length, pending: pendingCommit, saveEvery: SAVE_EVERY, concurrency: CONCURRENCY };
 }
 
-module.exports = { start, stop, getStats };
+async function testOne() {
+  const t0 = Date.now();
+  const wasRunning = running;
+  if (!wasRunning) running = true; // allow inner loops
+  try {
+    const r = await collectOne();
+    return { ...r, elapsed_ms: Date.now() - t0 };
+  } finally {
+    if (!wasRunning) running = false;
+  }
+}
+
+module.exports = { start, stop, getStats, testOne };
