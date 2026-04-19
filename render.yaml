@@ -9,3 +9,17 @@ services:
         value: Ahmad_Investor_2026
       - key: GITHUB_TOKEN
         sync: false
+      - key: GITHUB_REPO
+        value: hakercryptoplus-svg/skywork-proxy
+      - key: GITHUB_BRANCH
+        value: main
+      - key: TG_TOKEN
+        sync: false
+      - key: TG_CHAT
+        sync: false
+      - key: START_COLLECTOR
+        value: "1"
+      - key: COLLECTOR_CONCURRENCY
+        value: "3"
+      - key: SAVE_EVERY
+        value: "20"
