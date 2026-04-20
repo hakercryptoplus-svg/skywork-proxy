@@ -26,59 +26,18 @@ const MODELS = [
 ];
 
 let currentIdx = 0;
-const tokenHealth = new Map();
-
-function getTokenStatus(token) {
-  if (!tokenHealth.has(token)) {
-    tokenHealth.set(token, { fails: 0, lastFail: 0, cooldownMs: 60000 });
-  }
-  return tokenHealth.get(token);
-}
-
-function isTokenHealthy(token) {
-  const h = getTokenStatus(token);
-  if (h.fails < 3) return true;
-  if (Date.now() - h.lastFail > h.cooldownMs) {
-    h.fails = 0;
-    return true;
-  }
-  return false;
-}
-
-function recordTokenFail(token) {
-  const h = getTokenStatus(token);
-  h.fails++;
-  h.lastFail = Date.now();
-  h.cooldownMs = Math.min(h.cooldownMs * 2, 600000);
-}
-
-function recordTokenSuccess(token) {
-  const h = getTokenStatus(token);
-  h.fails = 0;
-  h.cooldownMs = 60000;
-}
 
 function getNextToken() {
   const tokens = state.getTokens();
   if (tokens.length === 0) return null;
-  const startIdx = currentIdx;
-  for (let i = 0; i < tokens.length; i++) {
-    const idx = (startIdx + i) % tokens.length;
-    if (isTokenHealthy(tokens[idx])) {
-      currentIdx = (idx + 1) % tokens.length;
-      return tokens[idx];
-    }
-  }
-  tokenHealth.clear();
+  const token = tokens[currentIdx];
   currentIdx = (currentIdx + 1) % tokens.length;
-  return tokens[currentIdx];
+  return token;
 }
 
 function getStats() {
   const tokens = state.getTokens();
-  let healthy = 0;
-  tokens.forEach(t => { if (isTokenHealthy(t)) healthy++; });
-  return { total: tokens.length, healthy, unhealthy: tokens.length - healthy, currentIdx };
+  return { total: tokens.length, healthy: tokens.length, unhealthy: 0, currentIdx };
 }
 
 app.options('*', (req, res) => res.status(204).end());
@@ -116,14 +75,9 @@ app.get('/v1/models', (req, res) => {
 
 app.get('/v1/stats', (req, res) => {
   const tokens = state.getTokens();
-  const details = tokens.map((t, i) => {
-    const h = getTokenStatus(t);
-    return {
-      index: i, suffix: '...' + t.slice(-8),
-      healthy: isTokenHealthy(t), fails: h.fails,
-      lastFail: h.lastFail ? new Date(h.lastFail).toISOString() : null
-    };
-  });
+  const details = tokens.map((t, i) => ({
+    index: i, suffix: '...' + t.slice(-8), healthy: true
+  }));
   res.json({ ...getStats(), tokens: details });
 });
 
@@ -197,10 +151,8 @@ app.post('/v1/chat/completions', async (req, res) => {
         if (isStream) {
           const textBody = await response.text();
           if (textBody.includes('skywork_router_limit') || textBody.includes('rate_limit')) {
-            recordTokenFail(token);
             continue;
           }
-          recordTokenSuccess(token);
           console.log(`[proxy] ✅ ${body.model} via ...${token.slice(-8)} (attempt ${attempt + 1})`);
           res.setHeader('Content-Type', contentType);
           return res.status(200).send(textBody);
@@ -209,30 +161,25 @@ app.post('/v1/chat/completions', async (req, res) => {
         const textBody = await response.text();
         if (textBody.includes('skywork_router_limit') || textBody.includes('rate_limit')) {
           console.log(`[proxy] Token ...${token.slice(-8)} rate limited, rotating`);
-          recordTokenFail(token);
           continue;
         }
 
-        recordTokenSuccess(token);
         console.log(`[proxy] ✅ ${body.model} via ...${token.slice(-8)} (attempt ${attempt + 1})`);
         res.setHeader('Content-Type', contentType);
         return res.status(200).send(textBody);
       }
 
       console.log(`[proxy] Token ...${token.slice(-8)} returned ${response.status}`);
-      recordTokenFail(token);
 
     } catch (e) {
       console.log(`[proxy] Token ...${token.slice(-8)} error: ${e.message}`);
-      recordTokenFail(token);
     }
   }
 
-  const stats = getStats();
-  console.log(`[proxy] ❌ All failed (tried ${triedTokens.size}, healthy: ${stats.healthy}/${stats.total})`);
+  console.log(`[proxy] ❌ All failed (tried ${triedTokens.size}/${tokens.length})`);
   res.status(503).json({
     error: {
-      message: `All tokens exhausted (tried ${triedTokens.size}/${tokens.length}, healthy: ${stats.healthy})`,
+      message: `All tokens exhausted (tried ${triedTokens.size}/${tokens.length})`,
       type: 'service_unavailable'
     }
   });
