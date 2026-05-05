@@ -117,7 +117,7 @@ app.post('/v1/chat/completions', async (req, res) => {
 
   const body = req.body;
   const tokens = state.getTokens();
-  const maxRetries = Math.min(tokens.length, 15);
+  const maxRetries = tokens.length;
   const triedTokens = new Set();
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
