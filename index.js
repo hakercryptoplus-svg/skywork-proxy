@@ -14,11 +14,11 @@ app.use((req, res, next) => {
 });
 
 const SECRET_KEY = process.env.SECRET_KEY || 'Ahmad_Investor_2026';
-const TARGET_URL = 'https://desktop-llm.skywork.ai/skycowork_llm/v1';
+const TARGET_URL = 'https://desktop-llm.skywork.ai/skycowork_llm/v1/chat/completions';
 const PORT = process.env.PORT || 3000;
 
 const MODELS = [
-  'claude-opus-4.6','claude-sonnet-4.6','claude-haiku-4.5',
+  'claude-opus-4.6','claude-opus-4.7','claude-sonnet-4.6','claude-haiku-4.5',
   'gemini-3.1-pro','gemini-3-flash-preview',
   'kimi-k2.5','kimi-k2','minimax-m2.5',
   'deepseek-v3','deepseek-r1',
@@ -32,6 +32,11 @@ function getNextToken() {
   if (tokens.length === 0) return null;
   const token = tokens[currentIdx];
   currentIdx = (currentIdx + 1) % tokens.length;
+  
+  // توحيد صيغة التوكن لتبدأ دائماً بـ token=
+  if (token && !token.startsWith('token=')) {
+    return `token=${token}`;
+  }
   return token;
 }
 
@@ -47,7 +52,7 @@ app.get('/', (req, res) => {
   const cstats = collector.getStats();
   res.json({
     status: 'ok',
-    message: 'Skywork LLM Proxy — auto token rotation + auto collection',
+    message: 'Skywork LLM Proxy — auto token rotation + auto collection (Fixed Version)',
     tokens: stats.total,
     healthy: stats.healthy,
     unhealthy: stats.unhealthy,
@@ -145,27 +150,32 @@ app.post('/v1/chat/completions', async (req, res) => {
       clearTimeout(timeout);
 
       if (response.status === 200) {
-        const contentType = response.headers.get('content-type') || 'application/json';
-        const isStream = body?.stream === true || contentType.includes('text/event-stream');
-
-        if (isStream) {
-          const textBody = await response.text();
-          if (textBody.includes('skywork_router_limit') || textBody.includes('rate_limit')) {
-            continue;
-          }
-          console.log(`[proxy] ✅ ${body.model} via ...${token.slice(-8)} (attempt ${attempt + 1})`);
-          res.setHeader('Content-Type', contentType);
-          return res.status(200).send(textBody);
-        }
-
         const textBody = await response.text();
+        
+        // التحقق من Rate Limit
         if (textBody.includes('skywork_router_limit') || textBody.includes('rate_limit')) {
           console.log(`[proxy] Token ...${token.slice(-8)} rate limited, rotating`);
           continue;
         }
 
-        console.log(`[proxy] ✅ ${body.model} via ...${token.slice(-8)} (attempt ${attempt + 1})`);
-        res.setHeader('Content-Type', contentType);
+        let jsonResponse;
+        try {
+          jsonResponse = JSON.parse(textBody);
+        } catch (e) {
+          // إذا لم يكن JSON (ربما Stream أو خطأ نصي)، أرسله كما هو
+          res.setHeader('Content-Type', response.headers.get('content-type') || 'text/plain');
+          return res.status(200).send(textBody);
+        }
+
+        // فك (Unwrap) استجابة Skywork إذا كانت تحتوي على data
+        if (jsonResponse && jsonResponse.data && jsonResponse.code === 0) {
+          console.log(`[proxy] ✅ ${body.model} via ...${token.slice(-8)} (unwrapped)`);
+          res.setHeader('Content-Type', 'application/json');
+          return res.status(200).json(jsonResponse.data);
+        }
+
+        console.log(`[proxy] ✅ ${body.model} via ...${token.slice(-8)} (original)`);
+        res.setHeader('Content-Type', 'application/json');
         return res.status(200).send(textBody);
       }
 
@@ -192,7 +202,6 @@ app.listen(PORT, () => {
   console.log(`[skywork-proxy] 📦 ${MODELS.length} models available`);
   console.log(`[skywork-proxy] 🔄 Auto rotation enabled`);
 
-  // Auto-start collector if enabled
   if (process.env.START_COLLECTOR === '1') {
     tg.attach(collector);
     if (tg.ENABLED) {
