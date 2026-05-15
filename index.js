@@ -74,14 +74,14 @@ app.get('/health', (req, res) => {
   res.json({ status: stats.healthy > 0 ? 'healthy' : 'degraded', ...stats });
 });
 
-app.get('/v1/models', (req, res) => {
+app.get('/admin/models', (req, res) => {
   res.json({
     object: 'list',
     data: MODELS.map(id => ({ id, object: 'model', created: 1700000000, owned_by: 'skywork' }))
   });
 });
 
-app.get('/v1/stats', (req, res) => {
+app.get('/admin/stats', (req, res) => {
   const tokens = state.getTokens();
   const details = tokens.map((t, i) => ({
     index: i, suffix: '...' + t.slice(-8), healthy: true
@@ -119,7 +119,7 @@ app.post('/admin/collector/test', adminAuth, async (req, res) => {
 
 // تم نقل /v1/chat/completions إلى LiteLLM
 // سنبقي هذا المسار فقط للاختبار أو كنسخة احتياطية بمسار مختلف
-app.post('/v1/chat/completions_legacy', async (req, res) => {
+app.post('/admin/chat/test', async (req, res) => {
   const authHeader = req.headers['authorization'];
   if (authHeader !== `Bearer ${SECRET_KEY}`) {
     return res.status(401).json({ error: 'Unauthorized' });

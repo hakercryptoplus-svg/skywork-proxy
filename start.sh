@@ -16,4 +16,6 @@ node index.js &
 # سيقوم LiteLLM بالاستماع على المنفذ الذي يحدده Render (غالباً 10000 أو عبر PORT env)
 # سنستخدم PORT الافتراضي لـ Render للبروكسي
 PORT=${PORT:-3000}
-litellm --config litellm_config.yaml --port $PORT --detailed_debug
+# تشغيل LiteLLM على المنفذ الذي يطلبه Render
+# سنضيف --host 0.0.0.0 للتأكد من استقبال الطلبات الخارجية
+litellm --config litellm_config.yaml --port $PORT --host 0.0.0.0 --detailed_debug
