@@ -8,8 +8,7 @@ fi
 # توليد إعدادات LiteLLM الأولية
 node generate_litellm_config.js
 
-# تشغيل خادم التوكنات (الجامع واللوحة الإدارية) في الخلفية
-export COLLECTOR_PORT=3001
+# تشغيل خادم التوكنات (الجامع فقط) في الخلفية كسكربت
 node index.js &
 
 # تشغيل LiteLLM كبروكسي أساسي

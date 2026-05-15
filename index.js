@@ -199,21 +199,19 @@ app.post('/admin/chat/test', async (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  const stats = getStats();
-  console.log(`[skywork-proxy] ✅ Running on port ${PORT}`);
-  console.log(`[skywork-proxy] 🔑 ${stats.total} tokens loaded (${stats.healthy} healthy)`);
-  console.log(`[skywork-proxy] 📦 ${MODELS.length} models available`);
-  console.log(`[skywork-proxy] 🔄 Auto rotation enabled`);
+// تعطيل خادم Express لمنع التعارض مع LiteLLM
+// سنقوم بتشغيل الجامع مباشرة
+const stats = getStats();
+console.log(`[skywork-proxy] 🔑 ${stats.total} tokens loaded`);
+console.log(`[skywork-proxy] 🔄 Auto rotation enabled`);
 
-  if (process.env.START_COLLECTOR === '1') {
-    tg.attach(collector);
-    if (tg.ENABLED) {
-      tg.pollUpdates().catch(e => console.error('[tg] poll loop crashed:', e.message));
-      tg.send(`🚀 <b>skywork-proxy started</b>\n📦 Tokens: ${stats.total}\n🤖 Collector: ON\n💬 /status /stop /start`).catch(() => {});
-    }
-    collector.start();
-  } else {
-    console.log('[skywork-proxy] 💤 Collector OFF (set START_COLLECTOR=1 to enable)');
+if (process.env.START_COLLECTOR === '1') {
+  tg.attach(collector);
+  if (tg.ENABLED) {
+    tg.pollUpdates().catch(e => console.error('[tg] poll loop crashed:', e.message));
+    tg.send(`🚀 <b>skywork-proxy started</b>\n📦 Tokens: ${stats.total}\n🤖 Collector: ON\n💬 /status /stop /start`).catch(() => {});
   }
-});
+  collector.start();
+} else {
+  console.log('[skywork-proxy] 💤 Collector OFF (set START_COLLECTOR=1 to enable)');
+}
