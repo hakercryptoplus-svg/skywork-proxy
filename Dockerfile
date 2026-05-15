@@ -4,7 +4,7 @@ FROM nikolaik/python-nodejs:python3.11-nodejs20
 WORKDIR /app
 
 # تثبيت LiteLLM والتبعيات المطلوبة
-RUN pip install 'litellm[router]'
+RUN pip install 'litellm[proxy]'
 
 # نسخ ملفات المشروع
 COPY package*.json ./
