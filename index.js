@@ -14,7 +14,7 @@ app.use((req, res, next) => {
 });
 
 const SECRET_KEY = process.env.SECRET_KEY || 'Ahmad_Investor_2026';
-const TARGET_URL = 'https://desktop-llm.skywork.ai/skycowork_llm/v1/proxy/chat/completions';
+const TARGET_URL = 'https://desktop-llm.skywork.ai/skycowork_llm/v1';
 const PORT = process.env.PORT || 3000;
 
 const MODELS = [
