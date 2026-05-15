@@ -2,6 +2,10 @@ const express = require('express');
 const state = require('./state');
 const collector = require('./collector');
 const tg = require('./telegram');
+const generateLiteLLMConfig = require('./generate_litellm_config');
+
+// توليد الإعدادات عند بدء التشغيل
+generateLiteLLMConfig();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -15,7 +19,7 @@ app.use((req, res, next) => {
 
 const SECRET_KEY = process.env.SECRET_KEY || 'Ahmad_Investor_2026';
 const TARGET_URL = 'https://desktop-llm.skywork.ai/skycowork_llm/v1/chat/completions';
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.COLLECTOR_PORT || 3001;
 
 const MODELS = [
   'claude-opus-4.6','claude-opus-4.7','claude-sonnet-4.6','claude-haiku-4.5',
@@ -113,7 +117,9 @@ app.post('/admin/collector/test', adminAuth, async (req, res) => {
   }
 });
 
-app.post('/v1/chat/completions', async (req, res) => {
+// تم نقل /v1/chat/completions إلى LiteLLM
+// سنبقي هذا المسار فقط للاختبار أو كنسخة احتياطية بمسار مختلف
+app.post('/v1/chat/completions_legacy', async (req, res) => {
   const authHeader = req.headers['authorization'];
   if (authHeader !== `Bearer ${SECRET_KEY}`) {
     return res.status(401).json({ error: 'Unauthorized' });

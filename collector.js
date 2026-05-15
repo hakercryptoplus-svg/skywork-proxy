@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const state = require('./state');
 const tg = require('./telegram');
 const { commitAndPush } = require('./gitpush');
+const generateLiteLLMConfig = require('./generate_litellm_config');
 
 const SAVE_EVERY = parseInt(process.env.SAVE_EVERY || '20');
 const CONCURRENCY = parseInt(process.env.COLLECTOR_CONCURRENCY || '3');
@@ -128,6 +129,7 @@ async function maybePush() {
   pendingCommit = 0;
   try {
     state.persist();
+    generateLiteLLMConfig();
   } catch (e) {
     console.error('[collector] persist failed:', e.message);
   }
