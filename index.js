@@ -33,7 +33,6 @@ function getNextToken() {
   const token = tokens[currentIdx];
   currentIdx = (currentIdx + 1) % tokens.length;
   
-  // توحيد صيغة التوكن لتبدأ دائماً بـ token=
   if (token && !token.startsWith('token=')) {
     return `token=${token}`;
   }
@@ -52,7 +51,7 @@ app.get('/', (req, res) => {
   const cstats = collector.getStats();
   res.json({
     status: 'ok',
-    message: 'Skywork LLM Proxy — auto token rotation + auto collection (Fixed Version)',
+    message: 'Skywork LLM Proxy — auto token rotation + auto collection (Enhanced Version)',
     tokens: stats.total,
     healthy: stats.healthy,
     unhealthy: stats.unhealthy,
@@ -134,6 +133,7 @@ app.post('/v1/chat/completions', async (req, res) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 45000);
 
+      console.log(`[proxy] Trying token ...${token.slice(-8)}`);
       const response = await fetch(TARGET_URL, {
         method: 'POST',
         headers: {
@@ -149,25 +149,23 @@ app.post('/v1/chat/completions', async (req, res) => {
       });
       clearTimeout(timeout);
 
-      if (response.status === 200) {
-        const textBody = await response.text();
-        
-        // التحقق من Rate Limit
-        if (textBody.includes('skywork_router_limit') || textBody.includes('rate_limit')) {
-          console.log(`[proxy] Token ...${token.slice(-8)} rate limited, rotating`);
-          continue;
-        }
+      const textBody = await response.text();
+      
+      // التحقق من Rate Limit أو أخطاء الراوتر
+      if (textBody.includes('skywork_router_limit') || textBody.includes('rate_limit') || textBody.includes('LLM API 调用失败')) {
+        console.log(`[proxy] Token ...${token.slice(-8)} limited or failed, rotating. Response: ${textBody.substring(0, 100)}`);
+        continue;
+      }
 
+      if (response.status === 200) {
         let jsonResponse;
         try {
           jsonResponse = JSON.parse(textBody);
         } catch (e) {
-          // إذا لم يكن JSON (ربما Stream أو خطأ نصي)، أرسله كما هو
           res.setHeader('Content-Type', response.headers.get('content-type') || 'text/plain');
           return res.status(200).send(textBody);
         }
 
-        // فك (Unwrap) استجابة Skywork إذا كانت تحتوي على data
         if (jsonResponse && jsonResponse.data && jsonResponse.code === 0) {
           console.log(`[proxy] ✅ ${body.model} via ...${token.slice(-8)} (unwrapped)`);
           res.setHeader('Content-Type', 'application/json');
@@ -189,7 +187,7 @@ app.post('/v1/chat/completions', async (req, res) => {
   console.log(`[proxy] ❌ All failed (tried ${triedTokens.size}/${tokens.length})`);
   res.status(503).json({
     error: {
-      message: `All tokens exhausted (tried ${triedTokens.size}/${tokens.length})`,
+      message: `All tokens exhausted or service failed (tried ${triedTokens.size}/${tokens.length})`,
       type: 'service_unavailable'
     }
   });
